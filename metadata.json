@@ -1,0 +1,7 @@
+{
+  "name": "EduTrack Pro: Monitoramento Pedagógico",
+  "description": "Uma plataforma completa para gestão e acompanhamento do progresso de aprendizagem em leitura e matemática para o ensino básico.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
