@@ -55,8 +55,8 @@ const App: React.FC = () => {
         return fallbackProfile;
       }
       return null;
-    } catch (e) {
-      console.error("Erro ao carregar perfil:", e);
+    } catch (e: any) {
+      console.error("Erro ao carregar perfil:", e.message || e);
       return null;
     }
   };
@@ -69,8 +69,8 @@ const App: React.FC = () => {
         const profile = await fetchUserProfile(session.user.id, session.user.email || '');
         if (profile) setCurrentUser(profile);
       }
-    } catch (e) {
-      console.error("Falha na inicialização da autenticação.");
+    } catch (e: any) {
+      console.error("Falha na inicialização da autenticação:", e.message || e);
     } finally {
       setLoading(false);
     }
@@ -118,8 +118,8 @@ const App: React.FC = () => {
       if (clsRes.data) setClasses(clsRes.data.map((c: any) => ({ id: c.id, name: c.name, grade: c.grade, teacherId: c.teacher_id })));
       if (usrRes.data) setUsers(usrRes.data);
       if (remRes.data) setRemedialEnrollments(remRes.data.map((r: any) => ({ id: r.id, studentId: r.student_id, classId: r.class_id, startDate: r.start_date, endDate: r.end_date, notes: r.notes })));
-    } catch (e) {
-      console.error("Erro ao sincronizar dados:", e);
+    } catch (e: any) {
+      console.error("Erro ao sincronizar dados:", e.message || e);
     }
   };
 
@@ -132,13 +132,18 @@ const App: React.FC = () => {
         reading_performance: PerformanceLevel.BASIC,
         math_performance: PerformanceLevel.BASIC,
         math_score: 0,
-        photo_url: studentData.photoUrl 
+        photo_url: studentData.photoUrl || null
       }]);
-      if (error) throw error;
+      
+      if (error) {
+        alert(`Erro ao salvar no banco: ${error.message}`);
+        return false;
+      }
+      
       await fetchData();
       return true;
     } catch (e: any) {
-      alert("Falha ao salvar aluno no banco: " + e.message);
+      alert(`Falha crítica: ${e.message || "Conexão perdida"}`);
       return false;
     }
   };
@@ -149,13 +154,18 @@ const App: React.FC = () => {
         name: studentData.name,
         class_id: studentData.classId,
         current_reading_level: studentData.readingLevel,
-        photo_url: studentData.photoUrl
+        photo_url: studentData.photoUrl || null
       }).eq('id', id);
-      if (error) throw error;
+      
+      if (error) {
+        alert(`Erro ao atualizar: ${error.message}`);
+        return false;
+      }
+      
       await fetchData();
       return true;
     } catch (e: any) {
-      alert("Erro ao atualizar dados: " + e.message);
+      alert(`Falha crítica na atualização: ${e.message}`);
       return false;
     }
   };
@@ -201,24 +211,32 @@ const App: React.FC = () => {
                 if (!confirm("Excluir permanentemente este aluno?")) return;
                 const { error } = await supabase.from('students').delete().eq('id', id);
                 if (!error) fetchData();
+                else alert(`Erro ao deletar: ${error.message}`);
               }}
             />
           )}
           {activeTab === 'remedial' && <RemedialManager user={currentUser!} students={students} classes={classes} enrollments={remedialEnrollments} setEnrollments={setRemedialEnrollments} />}
           {activeTab === 'classes' && <ClassManager classes={classes} users={users} setClasses={setClasses} onUpdateClass={async (id, data) => {
             const { error } = await supabase.from('classes').update({ name: data.name, grade: data.grade, teacher_id: data.teacherId || null }).eq('id', id);
-            if (!error) { await fetchData(); return true; } return false;
+            if (!error) { await fetchData(); return true; } 
+            alert(`Erro ao salvar turma: ${error.message}`);
+            return false;
           }} onDeleteClass={async (id) => {
             const { error } = await supabase.from('classes').delete().eq('id', id);
             if (!error) await fetchData();
+            else alert(`Erro ao deletar turma: ${error.message}`);
           }} />}
           {activeTab === 'users' && <UserManager currentUserId={currentUser!.id} users={users} setUsers={setUsers} onUpdateUser={async (id, data) => {
              const { error } = await supabase.from('profiles').update({ name: data.name, role: data.role, email: data.email }).eq('id', id);
-             if (!error) { await fetchData(); return true; } return false;
+             if (!error) { await fetchData(); return true; } 
+             alert(`Erro ao atualizar colaborador: ${error.message}`);
+             return false;
           }} onDeleteUser={async (id) => {
              if (!confirm("Remover este colaborador?")) return false;
              const { error } = await supabase.from('profiles').delete().eq('id', id);
-             if (!error) { await fetchData(); return true; } return false;
+             if (!error) { await fetchData(); return true; } 
+             alert(`Erro ao deletar colaborador: ${error.message}`);
+             return false;
           }} />}
           {activeTab === 'assessment' && (
             <AssessmentForm 
@@ -230,7 +248,13 @@ const App: React.FC = () => {
                   reading_performance: updated.readingPerformance,
                   math_performance: updated.mathPerformance
                 }).eq('id', updated.id);
-                if (!error) { await fetchData(); alert('Avaliação salva!'); setActiveTab('students'); }
+                if (!error) { 
+                  await fetchData(); 
+                  alert('Avaliação salva com sucesso!'); 
+                  setActiveTab('students'); 
+                } else {
+                  alert(`Erro ao salvar avaliação: ${error.message}`);
+                }
               }}
               onBack={() => setActiveTab('students')} 
             />
